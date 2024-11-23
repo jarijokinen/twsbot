@@ -16,8 +16,15 @@ def curses_main(stdscr):
     core.start()
     core.fetch_historical_data('AAPL')
 
-    ema_a = 0.0
-    ema_b = 0.0
+    # Indicators
+
+    ema9 = 0.0
+    ema20 = 0.0
+
+    # Signals
+
+    buy_signal = 0.0
+    sell_signal = 0.0
 
     while True:
         stdscr.clear()
@@ -29,10 +36,22 @@ def curses_main(stdscr):
         close_prices_np = np.array(close_prices)
 
         if len(close_prices_np) >= 20:
-            ema_a = talib.EMA(close_prices_np, timeperiod=9)[-1]
-            ema_b = talib.EMA(close_prices_np, timeperiod=20)[-1]
+            ema9 = talib.EMA(close_prices_np, timeperiod=9)[-1]
+            ema20 = talib.EMA(close_prices_np, timeperiod=20)[-1]
 
-        stdscr.addstr(0, 20, f'EMA9: {ema_a:.2f}  EMA20: {ema_b:.2f}')
+        stdscr.addstr(0, 20, f'EMA9: {ema9:.2f}  EMA20: {ema20:.2f}')
+
+        # Calculate signals
+
+        # EMA crossover
+
+        if ema9 > ema20:
+            buy_signal = 1
+
+        if ema9 < ema20:
+            sell_signal = 1
+        
+        stdscr.addstr(0, 50, f'BUY: {buy_signal:.2f}  SELL: {sell_signal:.2f}')
 
         # Output buffer to screen
 
