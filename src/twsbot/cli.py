@@ -39,60 +39,57 @@ def curses_main(stdscr, symbol):
         stdscr.clear()
         stdscr.addstr(0, 0, f'twsbot {__version__}', curses.A_REVERSE)
         
-        high_prices = [bar.high for bar in list(bars.queue)[-40:]]
-        low_prices = [bar.low for bar in list(bars.queue)[-40:]]
-        close_prices = [bar.close for bar in list(bars.queue)[-40:]]
+        highs = [bar.high for bar in list(bars.queue)[-40:]]
+        lows = [bar.low for bar in list(bars.queue)[-40:]]
+        closes = [bar.close for bar in list(bars.queue)[-40:]]
 
-        high_prices_np = np.array(high_prices)
-        low_prices_np = np.array(low_prices)
-        close_prices_np = np.array(close_prices)
+        highs_np = np.array(highs)
+        lows_np = np.array(lows)
+        closes_np = np.array(closes)
         
         # Calculate EMAs
 
-        if len(close_prices_np) >= 20:
-            ema9 = talib.EMA(close_prices_np, timeperiod=9)[-1]
-            ema20 = talib.EMA(close_prices_np, timeperiod=20)[-1]
-
+        if len(closes_np) >= 20:
+            ema9 = talib.EMA(closes_np, timeperiod=9)[-1]
+            ema20 = talib.EMA(closes_np, timeperiod=20)[-1]
 
         # Calculate ADX
 
-        if len(high_prices_np) >= 14 * 2:
+        if len(highs_np) >= 14 * 2:
             adx = talib.ADX(
-                high_prices_np, 
-                low_prices_np,
-                close_prices_np, 
+                highs_np, 
+                lows_np,
+                closes_np, 
                 timeperiod=14
             )
             adx14 = adx[-1]
 
             adx_plus = talib.PLUS_DI(
-                high_prices_np, 
-                low_prices_np,
-                close_prices_np, 
+                highs_np, 
+                lows_np,
+                closes_np, 
                 timeperiod=14
             )
             adx14_plus = adx_plus[-1]
 
             adx_minus = talib.MINUS_DI(
-                high_prices_np, 
-                low_prices_np,
-                close_prices_np, 
+                highs_np, 
+                lows_np,
+                closes_np, 
                 timeperiod=14
             )
             adx14_minus = adx_minus[-1]
- 
 
         # Calculate ATR
 
-        if len(high_prices_np) >= 14:
+        if len(highs_np) >= 14:
             atr = talib.ATR(
-                high_prices_np, 
-                low_prices_np,
-                close_prices_np, 
+                highs_np, 
+                lows_np,
+                closes_np, 
                 timeperiod=14
             )
             atr14 = atr[-1]
-
 
         # Calculate signals
 
@@ -115,11 +112,11 @@ def curses_main(stdscr, symbol):
 
         # Trailing stop-loss calculation
 
-        if len(low_prices) >= 1:
+        if len(lows) >= 1:
             if buy_signal > sell_signal:
-                new_sl = low_prices[-1] - atr14 * 2.0
+                new_sl = lows[-1] - atr14 * 2.0
             else:
-                new_sl = high_prices[-1] + atr14 * 2.0
+                new_sl = highs[-1] + atr14 * 2.0
             if new_sl > sl:
                 sl = new_sl
         
@@ -169,6 +166,4 @@ def main():
     )
     args = parser.parse_args()
 
-    symbol = args.symbol
-
-    curses.wrapper(lambda stdscr: curses_main(stdscr, symbol))
+    curses.wrapper(lambda stdscr: curses_main(stdscr, args.symbol))
