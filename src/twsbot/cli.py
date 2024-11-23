@@ -20,6 +20,9 @@ def curses_main(stdscr):
 
     ema9 = 0.0
     ema20 = 0.0
+    adx14 = 0.0
+    adx14_plus = 0.0
+    adx14_minus = 0.0
 
     # Signals
 
@@ -29,17 +32,53 @@ def curses_main(stdscr):
     while True:
         stdscr.clear()
         stdscr.addstr(0, 0, f'twsbot {__version__}', curses.A_REVERSE)
-    
-        # Calculate EMAs
+        
+        high_prices = [bar.high for bar in list(bars.queue)[-40:]]
+        low_prices = [bar.low for bar in list(bars.queue)[-40:]]
+        close_prices = [bar.close for bar in list(bars.queue)[-40:]]
 
-        close_prices = [bar.close for bar in list(bars.queue)[-20:]]
+        high_prices_np = np.array(high_prices)
+        low_prices_np = np.array(low_prices)
         close_prices_np = np.array(close_prices)
+        
+        # Calculate EMAs
 
         if len(close_prices_np) >= 20:
             ema9 = talib.EMA(close_prices_np, timeperiod=9)[-1]
             ema20 = talib.EMA(close_prices_np, timeperiod=20)[-1]
 
         stdscr.addstr(0, 20, f'EMA9: {ema9:.2f}  EMA20: {ema20:.2f}')
+
+        # Calculate ADX
+
+        if len(high_prices_np) >= 14 * 2:
+            adx = talib.ADX(
+                high_prices_np, 
+                low_prices_np,
+                close_prices_np, 
+                timeperiod=14
+            )
+            adx14 = adx[-1]
+
+            adx_plus = talib.PLUS_DI(
+                high_prices_np, 
+                low_prices_np,
+                close_prices_np, 
+                timeperiod=14
+            )
+            adx14_plus = adx_plus[-1]
+
+            adx_minus = talib.MINUS_DI(
+                high_prices_np, 
+                low_prices_np,
+                close_prices_np, 
+                timeperiod=14
+            )
+            adx14_minus = adx_minus[-1]
+ 
+        stdscr.addstr(1, 20, 
+            f'ADX: {adx14:.2f}  ADX+: {adx14_plus:.2f}  ADX-: {adx14_minus:.2f}'
+        )
 
         # Calculate signals
 
@@ -51,13 +90,24 @@ def curses_main(stdscr):
         if ema9 < ema20:
             sell_signal = 1
         
-        stdscr.addstr(0, 50, f'BUY: {buy_signal:.2f}  SELL: {sell_signal:.2f}')
+        # ADX strength and trend direction
 
-        # Output buffer to screen
+        if adx14 > 25:
+            if adx14_plus > adx14_minus:
+                buy_signal += 1
+
+            if adx14_plus < adx14_minus:
+                sell_signal += 1
+
+        # Output signals
+
+        stdscr.addstr(1, 0, f'BUY: {buy_signal:.2f}  SELL: {sell_signal:.2f}')
+
+        # Output buffer
 
         for idx, line in enumerate(list(buffer.queue)[-30:]):
-            if idx < curses.LINES - 2:
-                stdscr.addstr(idx + 2, 0, line)
+            if idx < curses.LINES - 3:
+                stdscr.addstr(idx + 3, 0, line)
 
         stdscr.refresh()
 
