@@ -2,6 +2,15 @@
 
 Algotrading bot for Interactive Brokers TWS API.
 
+## Features
+
+### Trade signals
+
+Trade signals (buy or sell) are generated as a score. The score is calculated
+by the strategies listed below.
+
+- EMA9/EMA20 Crossover
+
 ## Installation
 
 ```bash
