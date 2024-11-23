@@ -1,5 +1,6 @@
 import argparse
 import curses
+import time
 
 from . import __version__
 from twsbot.core import Core
@@ -27,6 +28,8 @@ def curses_main(stdscr):
         if key == ord('q'):
             core.stop()
             break
+
+        time.sleep(0.1)
 
 def main():
     parser = argparse.ArgumentParser(
