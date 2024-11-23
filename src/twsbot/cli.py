@@ -12,9 +12,11 @@ def curses_main(stdscr):
     curses.curs_set(0)
     stdscr.nodelay(1)
 
+    symbol = 'AAPL'
+
     core = Core()
     core.start()
-    core.fetch_historical_data('AAPL')
+    core.fetch_historical_data(symbol)
 
     # Indicators
 
@@ -24,10 +26,16 @@ def curses_main(stdscr):
     adx14_plus = 0.0
     adx14_minus = 0.0
 
+    atr14 = 0.0
+
     # Signals
 
     buy_signal = 0.0
     sell_signal = 0.0
+
+    # Position
+
+    sl = 0.0
 
     while True:
         stdscr.clear()
@@ -47,7 +55,6 @@ def curses_main(stdscr):
             ema9 = talib.EMA(close_prices_np, timeperiod=9)[-1]
             ema20 = talib.EMA(close_prices_np, timeperiod=20)[-1]
 
-        stdscr.addstr(0, 20, f'EMA9: {ema9:.2f}  EMA20: {ema20:.2f}')
 
         # Calculate ADX
 
@@ -76,9 +83,18 @@ def curses_main(stdscr):
             )
             adx14_minus = adx_minus[-1]
  
-        stdscr.addstr(1, 20, 
-            f'ADX: {adx14:.2f}  ADX+: {adx14_plus:.2f}  ADX-: {adx14_minus:.2f}'
-        )
+
+        # Calculate ATR
+
+        if len(high_prices_np) >= 14:
+            atr = talib.ATR(
+                high_prices_np, 
+                low_prices_np,
+                close_prices_np, 
+                timeperiod=14
+            )
+            atr14 = atr[-1]
+
 
         # Calculate signals
 
@@ -99,15 +115,34 @@ def curses_main(stdscr):
             if adx14_plus < adx14_minus:
                 sell_signal += 1
 
-        # Output signals
+        # Trailing stop-loss calculation
 
-        stdscr.addstr(1, 0, f'BUY: {buy_signal:.2f}  SELL: {sell_signal:.2f}')
+        if len(low_prices) >= 1:
+            if buy_signal > sell_signal:
+                new_sl = low_prices[-1] - atr14 * 2.0
+            else:
+                new_sl = high_prices[-1] + atr14 * 2.0
+            if new_sl > sl:
+                sl = new_sl
+        
+        # Output indicators and signals
+
+        stdscr.addstr(0, 14, f'EMA9: {ema9:.2f}')
+        stdscr.addstr(0, 28, f'EMA20: {ema20:.2f}')
+        stdscr.addstr(0, 44, f'ADX: {adx14:.2f}')
+        stdscr.addstr(0, 56, f'ADX+: {adx14_plus:.2f}')
+        stdscr.addstr(0, 70, f'ADX-: {adx14_minus:.2f}')
+        stdscr.addstr(1, 0, f'{symbol}')
+        stdscr.addstr(1, 14, f'ATR:  {atr14:.2f}')
+        stdscr.addstr(1, 28, f'SL:    {sl:.2f}')
+        stdscr.addstr(1, 44, f'BUY: {buy_signal:.2f}')
+        stdscr.addstr(1, 56, f'SELL: {sell_signal:.2f}')
 
         # Output buffer
 
         for idx, line in enumerate(list(buffer.queue)[-30:]):
-            if idx < curses.LINES - 3:
-                stdscr.addstr(idx + 3, 0, line)
+            if idx < curses.LINES - 4:
+                stdscr.addstr(idx + 4, 0, line)
 
         stdscr.refresh()
 
