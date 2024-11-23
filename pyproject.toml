@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=75.6", "wheel", "pip-tools>=7.4"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "twsbot"
+version = "0.0.1"
+description = "Algotrading bot for Interactive Brokers TWS API"
+authors = [
+  { name = "Jari Jokinen" }
+]
+license = { text = "MIT" }
+requires-python = ">=3.13"
+dependencies = [
+  "ibapi",
+  "numpy",
+  "pandas",
+  "ta-lib"
+]
+
+[project.scripts]
+twsbot = "twsbot.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
