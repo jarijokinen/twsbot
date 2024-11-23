@@ -1,7 +1,7 @@
 from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
 from ibapi.contract import Contract
-from twsbot.utils import buffer
+from twsbot.utils import bars, buffer
 
 class TWSAPI(EWrapper, EClient):
     def __init__(self):
@@ -11,6 +11,7 @@ class TWSAPI(EWrapper, EClient):
         buffer.put(f'Error: {reqId} {errorCode} {errorString}')
 
     def historicalData(self, reqId, bar):
+        bars.put(bar)
         buffer.put(f'{bar.date} {bar.open} {bar.high} {bar.low} {bar.close}')
 
     def create_contract(self, symbol):
