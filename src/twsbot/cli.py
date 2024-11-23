@@ -8,11 +8,9 @@ from . import __version__
 from twsbot.core import Core
 from twsbot.utils import bars, buffer
 
-def curses_main(stdscr):
+def curses_main(stdscr, symbol):
     curses.curs_set(0)
     stdscr.nodelay(1)
-
-    symbol = 'AAPL'
 
     core = Core()
     core.start()
@@ -164,6 +162,13 @@ def main():
         action='version', 
         version=f'%(prog)s {__version__}'
     )
+    parser.add_argument(
+        'symbol',
+        type=str,
+        help='The stock symbol (e.g., AAPL, GOOGL, NVDA)'
+    )
     args = parser.parse_args()
 
-    curses.wrapper(curses_main)
+    symbol = args.symbol
+
+    curses.wrapper(lambda stdscr: curses_main(stdscr, symbol))
