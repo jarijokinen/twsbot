@@ -32,7 +32,7 @@ class Core:
             self.contract,
             '',
             '1 D',
-            '1 min',
+            '5 secs',
             'TRADES',
             1,
             1,

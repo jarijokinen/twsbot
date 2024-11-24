@@ -175,7 +175,7 @@ def curses_main(stdscr, symbol):
             core.stop()
             break
 
-        time.sleep(1.0)
+        time.sleep(0.2)
 
 def main():
     parser = argparse.ArgumentParser(
