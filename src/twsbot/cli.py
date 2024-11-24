@@ -31,9 +31,13 @@ def curses_main(stdscr, symbol):
 
     atr14 = 0.0
 
+    ema_count = 0
+    adx_count = 0
+
     # Position
 
     sl = 0.0
+    tp = False
 
     while True:
         stdscr.clear()
@@ -104,54 +108,99 @@ def curses_main(stdscr, symbol):
         # EMA crossover
 
         if ema9 > ema20:
-            buy_signal = 1
+            ema_count += 1
+            if ema_count >= 4:
+                ema_count = 4
+                buy_signal += 1
 
         if ema9 < ema20:
-            sell_signal = 1
+            ema_count -= 1
+            if ema_count <= -4:
+                ema_count = -4
+                sell_signal += 1
         
         # ADX strength and trend direction
 
         if adx14 > 25:
             if adx14_plus > adx14_minus:
-                buy_signal += 1
+                adx_count += 1
+                if adx_count >= 4:
+                    adx_count = 4
+                    buy_signal += adx14 // 20 
 
             if adx14_plus < adx14_minus:
-                sell_signal += 1
+                adx_count -= 1
+                if adx_count <= -4:
+                    adx_count = -4
+                    sell_signal += adx14 // 20
         
         # Trailing stop-loss calculation
 
         if l > 0:
-            if account.position == 'long':
-                new_sl = l - atr14 * 2.0
-                if new_sl > sl:
-                    sl = new_sl
-            elif account.position == 'short':
-                new_sl = h + atr14 * 2.0
-                if new_sl < sl:
-                    sl = new_sl
-        
-        # Position management
+            if tp is False:
+                if account.position == 'long':
+                    new_sl = l - (atr14 * 1.3)
+                    if new_sl > sl:
+                        sl = new_sl
+                elif account.position == 'short':
+                    new_sl = h + (atr14 * 1.3)
+                    if new_sl < sl:
+                        sl = new_sl
+                else:
+                    sl = 0.0
+            else:
+                if account.position == 'long':
+                    new_sl = c - (atr14 * 1.2)
+                    if new_sl > sl:
+                        sl = new_sl
+                elif account.position == 'short':
+                    new_sl = c + (atr14 * 1.2)
+                    if new_sl < sl:
+                        sl = new_sl
+                else:
+                    sl = 0.0
+         
+        # Take profit calculation
 
-        if buy_signal > sell_signal and buy_signal > 1 and c > 0:
+        if account.position == 'long':
+            if (l - account.current_trade['bought_at']) * account.qty > 30:
+                tp = True
+        elif account.position == 'short':
+            if (account.current_trade['sold_at'] - h) * account.qty > 30:
+                tp = True
+
+        # Position management
+        
+        if account.position == 'long' and l <= sl and sl > 0:
+            account.sell(l)
+            buffer.append(f'SL SELL {account.qty} @ {l:.2f}')
+            tp = False
+            sl = 0.0
+        elif account.position == 'short' and h >= sl and sl > 0:
+            account.cover(h)
+            buffer.append(f'SL COVER {account.qty} @ {h:.2f}')
+            tp = False
+            sl = 0.0
+        elif buy_signal > sell_signal and buy_signal > 2 and c > 0:
             if account.position is None:
                 account.buy(c)
                 buffer.append(f'BUY {account.qty} @ {c:.2f}')
+                sl = l - (atr14 * 2.0)
+                tp = False
             elif account.position == 'short':
                 account.cover(c)
                 buffer.append(f'COVER {account.qty} @ {c:.2f}')
-        elif buy_signal < sell_signal and sell_signal > 1 and c > 0:
+                tp = False
+        elif buy_signal < sell_signal and sell_signal > 2 and c > 0:
             if account.position is None:
                 account.short(c)
                 buffer.append(f'SHORT {account.qty} @ {c:.2f}')
+                sl = h + (atr14 * 2.0)
+                tp = False
             elif account.position == 'long':
                 account.sell(c)
                 buffer.append(f'SELL {account.qty} @ {c:.2f}')
-        elif account.position == 'long' and l <= sl:
-            account.sell(l)
-            buffer.append(f'SL SELL {account.qty} @ {l:.2f}')
-        elif account.position == 'short' and h >= sl:
-            account.cover(h)
-            buffer.append(f'SL COVER {account.qty} @ {h:.2f}')
+                tp = False
  
         # Output indicators and signals
 
@@ -166,6 +215,8 @@ def curses_main(stdscr, symbol):
         stdscr.addstr(1, 46, f'BUY: {buy_signal:.2f}')
         stdscr.addstr(1, 58, f'SELL: {sell_signal:.2f}')
         stdscr.addstr(2, 0, f'Cash: {account.cash:.2f}')
+        stdscr.addstr(2, 16, f'EMA: {ema_count}')
+        stdscr.addstr(2, 30, f'ADX: {adx_count}')
 
         # Output buffer
 
@@ -219,7 +270,7 @@ def curses_main(stdscr, symbol):
             core.stop()
             break
 
-        time.sleep(0.2)
+        time.sleep(0.1)
 
 def main():
     parser = argparse.ArgumentParser(
