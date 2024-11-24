@@ -31,11 +31,6 @@ def curses_main(stdscr, symbol):
 
     atr14 = 0.0
 
-    # Signals
-
-    buy_signal = 0.0
-    sell_signal = 0.0
-
     # Position
 
     sl = 0.0
@@ -43,6 +38,9 @@ def curses_main(stdscr, symbol):
     while True:
         stdscr.clear()
         stdscr.addstr(0, 0, f'twsbot {__version__}', curses.A_REVERSE)
+    
+        buy_signal = 0.0
+        sell_signal = 0.0
         
         highs = [bar.high for bar in list(bars.queue)[-40:]]
         lows = [bar.low for bar in list(bars.queue)[-40:]]
@@ -119,34 +117,42 @@ def curses_main(stdscr, symbol):
 
             if adx14_plus < adx14_minus:
                 sell_signal += 1
-
+        
         # Trailing stop-loss calculation
 
-        if len(lows) >= 1:
-            if buy_signal > sell_signal:
-                new_sl = lows[-1] - atr14 * 2.0
-            else:
-                new_sl = highs[-1] + atr14 * 2.0
-            if new_sl > sl:
-                sl = new_sl
-
+        if l > 0:
+            if account.position == 'long':
+                new_sl = l - atr14 * 2.0
+                if new_sl > sl:
+                    sl = new_sl
+            elif account.position == 'short':
+                new_sl = h + atr14 * 2.0
+                if new_sl < sl:
+                    sl = new_sl
+        
         # Position management
 
-        if buy_signal > sell_signal and buy_signal > 0 and c > 0:
+        if buy_signal > sell_signal and buy_signal > 1 and c > 0:
             if account.position is None:
                 account.buy(c)
                 buffer.append(f'BUY {account.qty} @ {c:.2f}')
             elif account.position == 'short':
                 account.cover(c)
                 buffer.append(f'COVER {account.qty} @ {c:.2f}')
-        elif buy_signal < sell_signal and sell_signal > 0 and c > 0:
+        elif buy_signal < sell_signal and sell_signal > 1 and c > 0:
             if account.position is None:
                 account.short(c)
                 buffer.append(f'SHORT {account.qty} @ {c:.2f}')
             elif account.position == 'long':
                 account.sell(c)
                 buffer.append(f'SELL {account.qty} @ {c:.2f}')
-
+        elif account.position == 'long' and l <= sl:
+            account.sell(l)
+            buffer.append(f'SL SELL {account.qty} @ {l:.2f}')
+        elif account.position == 'short' and h >= sl:
+            account.cover(h)
+            buffer.append(f'SL COVER {account.qty} @ {h:.2f}')
+ 
         # Output indicators and signals
 
         stdscr.addstr(0, 16, f'EMA9: {ema9:.2f}')
@@ -160,13 +166,51 @@ def curses_main(stdscr, symbol):
         stdscr.addstr(1, 46, f'BUY: {buy_signal:.2f}')
         stdscr.addstr(1, 58, f'SELL: {sell_signal:.2f}')
         stdscr.addstr(2, 0, f'Cash: {account.cash:.2f}')
-        stdscr.addstr(2, 16, f'Pos:  {account.position}')
 
         # Output buffer
 
         for idx, line in enumerate(buffer):
             if idx < curses.LINES - 4:
                 stdscr.addstr(idx + 4, 0, line)
+
+        # Output current position
+        
+        if curses.LINES > 23:
+            stdscr.addstr(21, 0, f'Current Position', curses.A_REVERSE)
+
+            if account.position == 'long':
+                pl = (c - account.current_trade['bought_at']) * account.qty \
+                    - account.fee
+                stdscr.addstr(23, 0, 
+                    f'LONG  {account.qty} @ '
+                    f'{account.current_trade["bought_at"]}'
+                    f' -> {c:.2f} PL: {pl:.2f}'
+                )
+            elif account.position == 'short':
+                pl = (account.current_trade['sold_at'] - c) * account.qty \
+                    - account.fee
+                stdscr.addstr(23, 0, 
+                    f'SHORT {account.qty} @ {account.current_trade["sold_at"]}'
+                    f' -> {c:.2f} PL: {pl:.2f}')
+
+        # Output trade log
+        
+        stdscr.addstr(25, 0, f'Trade Log', curses.A_REVERSE)
+
+        for idx, trade in enumerate(account.trades[-10:]):
+            if idx < curses.LINES - 27:
+                if trade['position'] == 'long':
+                    pl = (trade['sold_at'] - trade['bought_at']) \
+                        * trade['qty'] - account.fee
+                    stdscr.addstr(idx + 27, 0, 
+                        f'LONG  {trade["qty"]} @ {trade["bought_at"]:.2f}'
+                        f' -> {trade["sold_at"]:.2f} PL: {pl:.2f}')
+                elif trade['position'] == 'short':
+                    pl = (trade['sold_at'] - trade['bought_at']) \
+                        * trade['qty'] - account.fee
+                    stdscr.addstr(idx + 27, 0,
+                        f'SHORT {trade["qty"]} @ {trade["sold_at"]:.2f}'
+                        f' -> {trade["bought_at"]:.2f} PL: {pl:.2f}')
 
         stdscr.refresh()
 

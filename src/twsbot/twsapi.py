@@ -18,7 +18,7 @@ class TWSAPI(EWrapper, EClient):
             f'{bar.date} -- O: {bar.open:.2f} H: {bar.high:.2f} '
             f'L: {bar.low:.2f} C: {bar.close:.2f} V: {bar.volume}'
         )
-        time.sleep(5)
+        time.sleep(1)
 
     def create_contract(self, symbol):
         contract = Contract()
