@@ -14,7 +14,7 @@ class Core:
 
         while True:
             if self.twsapi.isConnected():
-                buffer.put('Connected to TWS')
+                buffer.put('Connected to TWS successfully')
                 time.sleep(1)
                 threading.Thread(target=self.twsapi_worker, daemon=True).start()
                 break
@@ -33,7 +33,7 @@ class Core:
             '',
             '1 D',
             '1 min',
-            'MIDPOINT',
+            'TRADES',
             1,
             1,
             False,

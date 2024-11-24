@@ -12,7 +12,10 @@ class TWSAPI(EWrapper, EClient):
 
     def historicalData(self, reqId, bar):
         bars.put(bar)
-        buffer.put(f'{bar.date} {bar.open} {bar.high} {bar.low} {bar.close}')
+        buffer.put(
+            f'{bar.date} -- O: {bar.open:.2f} H: {bar.high:.2f} '
+            f'L: {bar.low:.2f} C: {bar.close:.2f} V: {bar.volume}'
+        )
 
     def create_contract(self, symbol):
         contract = Contract()
