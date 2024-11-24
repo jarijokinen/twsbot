@@ -9,12 +9,12 @@ class Core:
         self.twsapi = TWSAPI()
 
     def start(self):    
-        buffer.put('Connecting to TWS...')
+        buffer.append('Connecting to TWS...')
         self.twsapi.connect('127.0.0.1', 7496, clientId=1)
 
         while True:
             if self.twsapi.isConnected():
-                buffer.put('Connected to TWS successfully')
+                buffer.append('Connected to TWS successfully')
                 time.sleep(1)
                 threading.Thread(target=self.twsapi_worker, daemon=True).start()
                 break

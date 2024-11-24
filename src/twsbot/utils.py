@@ -1,4 +1,5 @@
+from collections import deque
 from queue import Queue
 
-bars = Queue(maxsize=2000)
-buffer = Queue(maxsize=200)
+bars = Queue()
+buffer = deque(maxlen=15)

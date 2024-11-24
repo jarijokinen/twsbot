@@ -5,6 +5,7 @@ import talib
 import time
 
 from . import __version__
+from twsbot.account import Account
 from twsbot.core import Core
 from twsbot.utils import bars, buffer
 
@@ -12,9 +13,13 @@ def curses_main(stdscr, symbol):
     curses.curs_set(0)
     stdscr.nodelay(1)
 
+    account = Account()
+
     core = Core()
     core.start()
     core.fetch_historical_data(symbol)
+    
+    h, l, c = 0.0, 0.0, 0.0
 
     # Indicators
 
@@ -46,7 +51,12 @@ def curses_main(stdscr, symbol):
         highs_np = np.array(highs)
         lows_np = np.array(lows)
         closes_np = np.array(closes)
-        
+
+        if len(closes) > 0:
+            h = highs[-1]
+            l = lows[-1]
+            c = closes[-1]
+
         # Calculate EMAs
 
         if len(closes_np) >= 20:
@@ -119,23 +129,42 @@ def curses_main(stdscr, symbol):
                 new_sl = highs[-1] + atr14 * 2.0
             if new_sl > sl:
                 sl = new_sl
-        
+
+        # Position management
+
+        if buy_signal > sell_signal and buy_signal > 0 and c > 0:
+            if account.position is None:
+                account.buy(c)
+                buffer.append(f'BUY {account.qty} @ {c:.2f}')
+            elif account.position == 'short':
+                account.cover(c)
+                buffer.append(f'COVER {account.qty} @ {c:.2f}')
+        elif buy_signal < sell_signal and sell_signal > 0 and c > 0:
+            if account.position is None:
+                account.short(c)
+                buffer.append(f'SHORT {account.qty} @ {c:.2f}')
+            elif account.position == 'long':
+                account.sell(c)
+                buffer.append(f'SELL {account.qty} @ {c:.2f}')
+
         # Output indicators and signals
 
-        stdscr.addstr(0, 14, f'EMA9: {ema9:.2f}')
-        stdscr.addstr(0, 28, f'EMA20: {ema20:.2f}')
-        stdscr.addstr(0, 44, f'ADX: {adx14:.2f}')
-        stdscr.addstr(0, 56, f'ADX+: {adx14_plus:.2f}')
-        stdscr.addstr(0, 70, f'ADX-: {adx14_minus:.2f}')
+        stdscr.addstr(0, 16, f'EMA9: {ema9:.2f}')
+        stdscr.addstr(0, 30, f'EMA20: {ema20:.2f}')
+        stdscr.addstr(0, 46, f'ADX: {adx14:.2f}')
+        stdscr.addstr(0, 58, f'ADX+: {adx14_plus:.2f}')
+        stdscr.addstr(0, 71, f'ADX-: {adx14_minus:.2f}')
         stdscr.addstr(1, 0, f'{symbol}')
-        stdscr.addstr(1, 14, f'ATR:  {atr14:.2f}')
-        stdscr.addstr(1, 28, f'SL:    {sl:.2f}')
-        stdscr.addstr(1, 44, f'BUY: {buy_signal:.2f}')
-        stdscr.addstr(1, 56, f'SELL: {sell_signal:.2f}')
+        stdscr.addstr(1, 16, f'ATR:  {atr14:.2f}')
+        stdscr.addstr(1, 30, f'SL:    {sl:.2f}')
+        stdscr.addstr(1, 46, f'BUY: {buy_signal:.2f}')
+        stdscr.addstr(1, 58, f'SELL: {sell_signal:.2f}')
+        stdscr.addstr(2, 0, f'Cash: {account.cash:.2f}')
+        stdscr.addstr(2, 16, f'Pos:  {account.position}')
 
         # Output buffer
 
-        for idx, line in enumerate(list(buffer.queue)[-30:]):
+        for idx, line in enumerate(buffer):
             if idx < curses.LINES - 4:
                 stdscr.addstr(idx + 4, 0, line)
 
@@ -166,4 +195,4 @@ def main():
     )
     args = parser.parse_args()
 
-    curses.wrapper(lambda stdscr: curses_main(stdscr, args.symbol))
+    curses.wrapper(lambda stdscr: curses_main(stdscr, args.symbol.upper()))

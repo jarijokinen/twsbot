@@ -8,11 +8,11 @@ class TWSAPI(EWrapper, EClient):
         EClient.__init__(self, self)
 
     def error(self, reqId, errorCode, errorString):
-        buffer.put(f'Error: {reqId} {errorCode} {errorString}')
+        buffer.append(f'Error: {reqId} {errorCode} {errorString}')
 
     def historicalData(self, reqId, bar):
         bars.put(bar)
-        buffer.put(
+        buffer.append(
             f'{bar.date} -- O: {bar.open:.2f} H: {bar.high:.2f} '
             f'L: {bar.low:.2f} C: {bar.close:.2f} V: {bar.volume}'
         )
