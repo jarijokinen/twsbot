@@ -4,17 +4,24 @@ Algotrading bot for Interactive Brokers TWS API.
 
 ## Features
 
+### Indicators
+
+- Exponential Moving Averages (EMA)
+- Average Directional Index (ADX)
+- Bollinger Bands (BB)
+- Keltner Channels (KC)
+- Average True Range (ATR)
+
 ### Trade signals
 
-Trade signals (buy or sell) are generated as a score. The score is calculated
-by the strategies listed below.
-
-- EMA9/EMA20 crossover
-- ADX14 trend strength and direction
+- EMA crossovers
+- ADX trend strength and direction
+- Consolidation detection
+- WIP: Breakout detection
 
 ### Risk management
 
-- Trailing stop-loss level based on ATR14
+- Trailing stop-loss level based on ATR
 
 ## Installation
 

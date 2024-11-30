@@ -20,11 +20,18 @@ def curses_main(stdscr, symbol):
         stdscr.addstr(2, 0,
             f'EMA9: {core.ema9:<10.2f} EMA20: {core.ema20:<10.2f} '
             f'ADX14: {core.adx14:<10.2f} '
-            f'ATR14: {core.atr14:<10.2f} ')
+            f'ATR14: {core.atr14:<10.2f} '
+            f'Volume: {core.volume_trend}')
+        stdscr.addstr(3, 0,
+            f'Vol: {core.volume:<10.2f} '
+            f'VMA14: {core.vma14:<10.2f} '
+            f'Close: {core.close:<10.2f} '
+            f'Bandwidth: {core.bb_bandwidth} '
+            f'Consolidation: {core.in_consolidation} ')
 
         for i, line in enumerate(buffer):
-            if i <= curses.LINES - 4:
-                stdscr.addstr(i + 4, 0, line)
+            if i <= curses.LINES - 5:
+                stdscr.addstr(i + 5, 0, line)
 
         stdscr.refresh()
 

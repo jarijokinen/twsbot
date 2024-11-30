@@ -9,13 +9,13 @@ bar_data = np.zeros(4680, dtype=[
     ('high', 'float64'),
     ('low', 'float64'),
     ('close', 'float64'),
-    ('volume', 'uint64')
+    ('volume', 'float64')
 ])
 bar_data_idx = 0
 bar_data_lock = threading.Lock()
 
 def append_bar_data(bar):
-    global buffer, bar_data, bar_data_idx, bar_data_lock
+    global buffer, bar_data, bar_data_idx, bar_data_lock, bar_data_size
 
     with bar_data_lock:
         bar_data[bar_data_idx] = (

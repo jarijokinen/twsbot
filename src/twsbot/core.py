@@ -15,15 +15,29 @@ class Core:
         self.closes = []
         self.volumes = []
 
+        self.volume = 0.0
+        self.close = 0.0
+
         self.adx14 = 0.0
         self.adx14_plus = 0.0
         self.adx14_minus = 0.0
         self.atr14 = 0.0
         self.ema9 = 0.0
         self.ema20 = 0.0
+        self.vma14 = 0.0
+        self.bb_upper = 0.0
+        self.bb_middle = 0.0
+        self.bb_lower = 0.0
+        self.bb_bandwidth = 0.0
+        self.kc_upper = 0.0
+        self.kc_lower = 0.0
 
         self.ema_trend = 'neutral'
         self.adx_trend = 'neutral'
+        self.volume_trend = 'neutral'
+        self.kc_breakout = 'neutral'
+
+        self.in_consolidation = False
 
     def start(self):    
         buffer.append('Connecting to TWS API...')
@@ -55,7 +69,7 @@ class Core:
             'TRADES',
             1,
             2,
-            False,
+            True,
             []
         )
 
@@ -65,6 +79,9 @@ class Core:
             self.lows = get_bars('low')
             self.closes = get_bars('close')
             self.volumes = get_bars('volume')
+
+            self.close = self.closes[-1]
+            self.volume = self.volumes[-1]
     
             time.sleep(1)
 
@@ -106,6 +123,29 @@ class Core:
                 timeperiod=14
             )[-1]
 
+            # VMA
+
+            self.vma14 = talib.SMA(self.volumes, timeperiod=14)[-1]
+ 
+            # Bollinger Bands
+
+            upper, middle, lower = talib.BBANDS(
+                self.closes,
+                timeperiod=20,
+                nbdevup=2,
+                nbdevdn=2,
+                matype=0
+            )
+            self.bb_upper = upper[-1]
+            self.bb_middle = middle[-1]
+            self.bb_lower = lower[-1]
+            self.bb_bandwidth = (self.bb_upper - self.bb_lower) / self.bb_middle
+
+            # Keltner Channels
+            
+            self.kc_upper = self.ema20 + (self.atr14 * 1.5)
+            self.kc_lower = self.ema20 - (self.atr14 * 1.5)
+
             time.sleep(1)
             
     def _signal_worker(self):
@@ -129,7 +169,32 @@ class Core:
                     self.adx_trend = 'bear'
                 else:
                     self.adx_trend = 'neutral'
+            
+            # Volume trend
 
+            if self.volume > self.vma14 * 1.5:
+                self.volume_trend = 'strong'
+            elif self.volume < self.vma14 * 1.5:
+                self.volume_trend = 'weak'
+            else:
+                self.volume_trend = 'neutral'
+
+            # Consolidation
+
+            if self.bb_bandwidth < 0.01 and self.atr14 < 0.5 and self.adx14 < 20:
+                self.in_consolidation = True
+            else:
+                self.in_consolidation = False
+            
+            # Keltner breakout
+
+            if self.volume_trend == 'strong' and self.close > self.kc_upper:
+                self.kc_breakout = 'bull'
+            elif self.volume_trend == 'strong' and self.close < self.kc_lower:
+                self.kc_breakout = 'bear'
+            else:
+                self.kc_breakout = 'neutral'
+            
             time.sleep(1)
     
     def _strategy_worker(self):
