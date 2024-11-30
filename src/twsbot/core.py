@@ -1,8 +1,7 @@
 import talib
-import time
 import threading
+import time
 
-from twsbot.account import Account
 from twsbot.twsapi import TwsApi
 from twsbot.utils import buffer, get_bars
 
@@ -111,6 +110,7 @@ class Core:
             
     def _signal_worker(self):
         while True:
+
             # EMA crossover
 
             if self.ema9 > self.ema20:
