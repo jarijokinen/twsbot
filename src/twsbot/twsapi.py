@@ -5,7 +5,7 @@ from twsbot.utils import bars, buffer
 
 import time
 
-class TWSAPI(EWrapper, EClient):
+class TwsApi(EWrapper, EClient):
     def __init__(self):
         EClient.__init__(self, self)
 

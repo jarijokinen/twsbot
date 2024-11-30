@@ -139,11 +139,11 @@ def curses_main(stdscr, symbol):
         if l > 0:
             if tp is False:
                 if account.position == 'long':
-                    new_sl = l - (atr14 * 1.3)
+                    new_sl = l - (atr14 * 1.8)
                     if new_sl > sl:
                         sl = new_sl
                 elif account.position == 'short':
-                    new_sl = h + (atr14 * 1.3)
+                    new_sl = h + (atr14 * 1.8)
                     if new_sl < sl:
                         sl = new_sl
                 else:
