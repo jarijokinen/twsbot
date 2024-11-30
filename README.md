@@ -6,7 +6,7 @@ Algotrading bot for Interactive Brokers TWS API.
 
 ### Indicators
 
-- Exponential Moving Averages (EMA)
+- Moving Averages (EMA, VMA)
 - Average Directional Index (ADX)
 - Bollinger Bands (BB)
 - Keltner Channels (KC)

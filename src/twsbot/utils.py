@@ -15,7 +15,7 @@ bar_data_idx = 0
 bar_data_lock = threading.Lock()
 
 def append_bar_data(bar):
-    global buffer, bar_data, bar_data_idx, bar_data_lock, bar_data_size
+    global buffer, bar_data, bar_data_idx, bar_data_lock
 
     with bar_data_lock:
         bar_data[bar_data_idx] = (
