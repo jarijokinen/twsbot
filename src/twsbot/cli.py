@@ -19,7 +19,8 @@ def curses_main(stdscr, symbol):
         stdscr.addstr(0, 0, f'twsbot {__version__}', curses.A_REVERSE)
         stdscr.addstr(2, 0,
             f'EMA9: {core.ema9:<10.2f} EMA20: {core.ema20:<10.2f} '
-            f'ATR14: {core.atr14:<10.2f} ADX14: {core.adx14:<10.2f}')
+            f'ADX14: {core.adx14:<10.2f} '
+            f'ATR14: {core.atr14:<10.2f} ')
 
         for i, line in enumerate(buffer):
             if i <= curses.LINES - 4:

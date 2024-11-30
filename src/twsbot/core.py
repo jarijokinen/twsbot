@@ -1,19 +1,30 @@
+import talib
 import time
 import threading
 
+from twsbot.account import Account
 from twsbot.twsapi import TwsApi
-from twsbot.utils import buffer, bars
+from twsbot.utils import buffer, get_bars
 
 class Core:
     def __init__(self):
         self.twsapi = TwsApi()
         self.contract = None
+
+        self.highs = []
+        self.lows = []
+        self.closes = []
+        self.volumes = []
+
         self.adx14 = 0.0
         self.adx14_plus = 0.0
         self.adx14_minus = 0.0
         self.atr14 = 0.0
         self.ema9 = 0.0
         self.ema20 = 0.0
+
+        self.ema_trend = 'neutral'
+        self.adx_trend = 'neutral'
 
     def start(self):    
         buffer.append('Connecting to TWS API...')
@@ -26,6 +37,10 @@ class Core:
         buffer.append('Connected to TWS API successfully!')
         time.sleep(1)
         threading.Thread(target=self._twsapi_worker, daemon=True).start()
+        threading.Thread(target=self._data_worker, daemon=True).start()
+        threading.Thread(target=self._indicator_worker, daemon=True).start()
+        threading.Thread(target=self._signal_worker, daemon=True).start()
+        threading.Thread(target=self._strategy_worker, daemon=True).start()
 
     def stop(self):
         self.twsapi.disconnect()
@@ -44,182 +59,85 @@ class Core:
             False,
             []
         )
-    
+
     def _data_worker(self):
-        global buffer
-
-        account = Account()
-        
-        h, l, c = 0.0, 0.0, 0.0
-
-        # Indicators
-
-        ema_count = 0
-        adx_count = 0
-
-        # Position
-
-        sl = 0.0
-        tp = False
-
         while True:
-            sell_signal = 0.0
+            self.highs = get_bars('high')
+            self.lows = get_bars('low')
+            self.closes = get_bars('close')
+            self.volumes = get_bars('volume')
+    
+            time.sleep(1)
+
+    def _indicator_worker(self):
+        while True:
+
+            # EMA
+
+            self.ema9 = talib.EMA(self.closes, timeperiod=9)[-1]
+            self.ema20 = talib.EMA(self.closes, timeperiod=20)[-1]
             
-            highs = [bar.high for bar in list(bars.queue)[-40:]]
-            lows = [bar.low for bar in list(bars.queue)[-40:]]
-            closes = [bar.close for bar in list(bars.queue)[-40:]]
+            # ADX
 
-            highs_np = np.array(highs)
-            lows_np = np.array(lows)
-            closes_np = np.array(closes)
+            self.adx14 = talib.ADX(
+                self.highs, 
+                self.lows, 
+                self.closes, 
+                timeperiod=14
+            )[-1]
+            self.adx14_plus = talib.PLUS_DI(
+                self.highs, 
+                self.lows,
+                self.closes, 
+                timeperiod=14
+            )[-1]
+            self.adx14_minus = talib.MINUS_DI(
+                self.highs, 
+                self.lows,
+                self.closes, 
+                timeperiod=14
+            )[-1]
 
-            if len(closes) > 0:
-                h = highs[-1]
-                l = lows[-1]
-                c = closes[-1]
+            # ATR
 
-            # Calculate EMAs
+            self.atr14 = talib.ATR(
+                self.highs, 
+                self.lows, 
+                self.closes, 
+                timeperiod=14
+            )[-1]
 
-            if len(closes_np) >= 20:
-                self.ema9 = talib.EMA(closes_np, timeperiod=9)[-1]
-                self.ema20 = talib.EMA(closes_np, timeperiod=20)[-1]
-
-            # Calculate ADX
-
-            if len(highs_np) >= 14 * 2:
-                adx = talib.ADX(
-                    highs_np, 
-                    lows_np,
-                    closes_np, 
-                    timeperiod=14
-                )
-                self.adx14 = adx[-1]
-
-                adx_plus = talib.PLUS_DI(
-                    highs_np, 
-                    lows_np,
-                    closes_np, 
-                    timeperiod=14
-                )
-                self.adx14_plus = adx_plus[-1]
-
-                adx_minus = talib.MINUS_DI(
-                    highs_np, 
-                    lows_np,
-                    closes_np, 
-                    timeperiod=14
-                )
-                self.adx14_minus = adx_minus[-1]
-
-            # Calculate ATR
-
-            if len(highs_np) >= 14:
-                atr = talib.ATR(
-                    highs_np, 
-                    lows_np,
-                    closes_np, 
-                    timeperiod=14
-                )
-                self.atr14 = atr[-1]
-
-            # Calculate signals
-
+            time.sleep(1)
+            
+    def _signal_worker(self):
+        while True:
             # EMA crossover
 
             if self.ema9 > self.ema20:
-                ema_count += 1
-                if ema_count >= 4:
-                    ema_count = 4
-                    buy_signal += 1
+                self.ema_trend = 'bull'
 
             if self.ema9 < self.ema20:
-                ema_count -= 1
-                if ema_count <= -4:
-                    ema_count = -4
-                    sell_signal += 1
-            
-            # ADX strength and trend direction
+                self.ema_trend = 'bear'
+                pass
 
+            # ADX trend
+            
             if self.adx14 > 25:
                 if self.adx14_plus > self.adx14_minus:
-                    adx_count += 1
-                    if adx_count >= 4:
-                        adx_count = 4
-                        buy_signal += self.adx14 // 20 
-
-                if self.adx14_plus < self.adx14_minus:
-                    adx_count -= 1
-                    if adx_count <= -4:
-                        adx_count = -4
-                        sell_signal += self.adx14 // 20
-            
-            # Trailing stop-loss calculation
-
-            if l > 0:
-                if tp is False:
-                    if account.position == 'long':
-                        new_sl = l - (self.atr14 * 1.8)
-                        if new_sl > sl:
-                            sl = new_sl
-                    elif account.position == 'short':
-                        new_sl = h + (self.atr14 * 1.8)
-                        if new_sl < sl:
-                            sl = new_sl
-                    else:
-                        sl = 0.0
+                    self.adx_trend = 'bull'
+                elif self.adx14_plus < self.adx14_minus:
+                    self.adx_trend = 'bear'
                 else:
-                    if account.position == 'long':
-                        new_sl = c - (self.atr14 * 1.2)
-                        if new_sl > sl:
-                            sl = new_sl
-                    elif account.position == 'short':
-                        new_sl = c + (self.atr14 * 1.2)
-                        if new_sl < sl:
-                            sl = new_sl
-                    else:
-                        sl = 0.0
-             
-            # Take profit calculation
+                    self.adx_trend = 'neutral'
 
-            if account.position == 'long':
-                if (l - account.current_trade['bought_at']) * account.qty > 30:
-                    tp = True
-            elif account.position == 'short':
-                if (account.current_trade['sold_at'] - h) * account.qty > 30:
-                    tp = True
+            time.sleep(1)
+    
+    def _strategy_worker(self):
+        while True:
+            if self.ema_trend == 'bull' and self.adx_trend == 'bull':
+                pass
 
-            # Position management
-            
-            if account.position == 'long' and l <= sl and sl > 0:
-                account.sell(l)
-                buffer.append(f'SL SELL {account.qty} @ {l:.2f}')
-                tp = False
-                sl = 0.0
-            elif account.position == 'short' and h >= sl and sl > 0:
-                account.cover(h)
-                buffer.append(f'SL COVER {account.qty} @ {h:.2f}')
-                tp = False
-                sl = 0.0
-            elif buy_signal > sell_signal and buy_signal > 2 and c > 0:
-                if account.position is None:
-                    account.buy(c)
-                    buffer.append(f'BUY {account.qty} @ {c:.2f}')
-                    sl = l - (atr14 * 2.0)
-                    tp = False
-                elif account.position == 'short':
-                    account.cover(c)
-                    buffer.append(f'COVER {account.qty} @ {c:.2f}')
-                    tp = False
-            elif buy_signal < sell_signal and sell_signal > 2 and c > 0:
-                if account.position is None:
-                    account.short(c)
-                    buffer.append(f'SHORT {account.qty} @ {c:.2f}')
-                    sl = h + (atr14 * 2.0)
-                    tp = False
-                elif account.position == 'long':
-                    account.sell(c)
-                    buffer.append(f'SELL {account.qty} @ {c:.2f}')
-                    tp = False
+            time.sleep(1)
 
     def _twsapi_worker(self):
         self.twsapi.run()
